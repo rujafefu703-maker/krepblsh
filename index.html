@@ -1,0 +1,1376 @@
+<meta charset="UTF-8" />
+<title>Мои долги — калькулятор задолженности</title>
+<style>
+  :root {
+    --bg: #F1ECE1;
+    --surface: #FBF8F1;
+    --surface-2: #F5EFE2;
+    --ink: #24211B;
+    --ink-muted: #6B6255;
+    --line: #D9CFB8;
+    --accent: #8A5A3B;
+    --accent-ink: #FBF8F1;
+    --ok: #3F6F4F;
+    --ok-bg: #E4EEE1;
+    --warn: #A9750C;
+    --warn-bg: #F5E8C9;
+    --danger: #A23B2E;
+    --danger-bg: #F5DDD6;
+    --chart-plan: #1D5FA8;
+    --chart-deviation: #A23B2E;
+    --shadow: 0 1px 2px rgba(36, 33, 27, 0.06), 0 4px 14px rgba(36, 33, 27, 0.05);
+    --font-display: Georgia, "Iowan Old Style", "Noto Serif", "Times New Roman", serif;
+    --font-body: "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "Cascadia Mono", "Cascadia Code", "SF Mono", Consolas, "Roboto Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16130E;
+      --surface: #1E1A13;
+      --surface-2: #241F17;
+      --ink: #EDE6D6;
+      --ink-muted: #A79A83;
+      --line: #3A3327;
+      --accent: #D08A5C;
+      --accent-ink: #16130E;
+      --ok: #7FB68B;
+      --ok-bg: #1F2E22;
+      --warn: #E0B24A;
+      --warn-bg: #3A2E13;
+      --danger: #E07A67;
+      --danger-bg: #3A1E19;
+      --chart-plan: #4A85C7;
+      --chart-deviation: #D0705E;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 18px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16130E; --surface: #1E1A13; --surface-2: #241F17; --ink: #EDE6D6; --ink-muted: #A79A83;
+    --line: #3A3327; --accent: #D08A5C; --accent-ink: #16130E; --ok: #7FB68B; --ok-bg: #1F2E22;
+    --warn: #E0B24A; --warn-bg: #3A2E13; --danger: #E07A67; --danger-bg: #3A1E19;
+    --chart-plan: #4A85C7; --chart-deviation: #D0705E;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 18px rgba(0, 0, 0, 0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #F1ECE1; --surface: #FBF8F1; --surface-2: #F5EFE2; --ink: #24211B; --ink-muted: #6B6255;
+    --line: #D9CFB8; --accent: #8A5A3B; --accent-ink: #FBF8F1; --ok: #3F6F4F; --ok-bg: #E4EEE1;
+    --warn: #A9750C; --warn-bg: #F5E8C9; --danger: #A23B2E; --danger-bg: #F5DDD6;
+    --chart-plan: #1D5FA8; --chart-deviation: #A23B2E;
+    --shadow: 0 1px 2px rgba(36, 33, 27, 0.06), 0 4px 14px rgba(36, 33, 27, 0.05);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  body { min-height: 100vh; }
+
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    font-weight: 600;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    font-weight: 600;
+    margin: 4px 0 0;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+
+  /* ---- Summary band ---- */
+  .summary {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 26px 28px;
+    box-shadow: var(--shadow);
+  }
+  .summary-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .summary-total-label {
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    letter-spacing: 0.03em;
+  }
+  .summary-total {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(1.9rem, 5vw, 2.5rem);
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1.1;
+  }
+  .summary-clock {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+    white-space: nowrap;
+  }
+  .summary-rule {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 18px 0 16px;
+  }
+  .summary-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 18px;
+  }
+  .chip-label {
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .chip-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+  .chip-value.penalty { color: var(--danger); }
+  .chip-value.interest { color: var(--warn); }
+
+  /* ---- Toolbar ---- */
+  .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .toolbar h2 {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  button {
+    font-family: var(--font-body);
+    cursor: pointer;
+  }
+  .btn {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    padding: 9px 16px;
+    border-radius: 7px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--ink-muted);
+    padding: 6px 10px;
+    font-size: 0.82rem;
+  }
+  .btn-ghost:hover { color: var(--ink); text-decoration: underline; }
+  .btn-danger-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--danger);
+    padding: 6px 10px;
+    font-size: 0.82rem;
+  }
+  .btn-danger-ghost:hover { text-decoration: underline; }
+  .btn-small { padding: 6px 12px; font-size: 0.82rem; }
+
+  /* ---- Forms ---- */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    box-shadow: var(--shadow);
+  }
+  .panel h3 {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    margin: 0 0 16px;
+  }
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px 16px;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+  input, select {
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    color: var(--ink);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  label span.field-name { font-family: var(--font-body); }
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .hint {
+    font-size: 0.76rem;
+    color: var(--ink-muted);
+    margin-top: 2px;
+  }
+  .hidden { display: none !important; }
+
+  /* ---- Debt list ---- */
+  .list { display: flex; flex-direction: column; gap: 14px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card.status-ok { border-left-color: var(--ok); }
+  .card.status-warn { border-left-color: var(--warn); }
+  .card.status-danger { border-left-color: var(--danger); }
+  .card.status-closed { border-left-color: var(--line); opacity: 0.72; }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px 20px 14px;
+    flex-wrap: wrap;
+  }
+  .card-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+  .pill {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .pill.status-ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.status-warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.status-danger { background: var(--danger-bg); color: var(--danger); }
+  .pill.status-closed { background: var(--surface-2); color: var(--ink-muted); }
+
+  .card-total { text-align: right; }
+  .card-total-label { font-size: 0.7rem; color: var(--ink-muted); }
+  .card-total-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+  .card-total-value.status-danger { color: var(--danger); }
+  .card-total-value.status-warn { color: var(--ink); }
+
+  .card-rule { border: none; border-top: 1px solid var(--line); margin: 0; }
+
+  .card-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+    padding: 16px 20px;
+  }
+  .stat-label { font-size: 0.72rem; color: var(--ink-muted); margin-bottom: 3px; }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .stat-value.penalty { color: var(--danger); }
+  .stat-value.interest-num { color: var(--warn); }
+  .stat-sub { font-size: 0.74rem; color: var(--ink-muted); margin-top: 2px; }
+
+  .flash { animation: flash-pulse 0.6s ease-out; }
+  @keyframes flash-pulse {
+    0% { background-color: var(--warn-bg); }
+    100% { background-color: transparent; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flash { animation: none; }
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    padding: 4px 20px 16px;
+    flex-wrap: wrap;
+  }
+
+  .card-subpanel {
+    padding: 16px 20px 20px;
+    border-top: 1px dashed var(--line);
+  }
+  .card-subpanel h4 {
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin: 0 0 12px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .history-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  .history-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.86rem;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .history-row:last-child { border-bottom: none; }
+  .history-date { color: var(--ink-muted); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .history-amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .history-note { color: var(--ink-muted); font-size: 0.8rem; }
+
+  .confirm-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.86rem;
+    background: var(--danger-bg);
+    color: var(--danger);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 0 20px 16px;
+  }
+
+  .empty-state {
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 36px 24px;
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 0.92rem;
+  }
+
+  /* ---- Payoff plan ---- */
+  .payoff-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin: 16px 0 20px;
+  }
+  .payoff-stats .chip-value { font-size: 1.3rem; }
+  select {
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    color: var(--ink);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+    overflow-x: auto;
+  }
+  .chart-wrap svg {
+    width: 100%;
+    height: auto;
+    min-width: 480px;
+    display: block;
+    font-family: var(--font-body);
+  }
+  .chart-grid-line { stroke: var(--line); stroke-width: 1; }
+  .chart-axis-label {
+    fill: var(--ink-muted);
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+  .chart-line-plan { fill: none; stroke: var(--chart-plan); stroke-width: 2; }
+  .chart-line-deviation { fill: none; stroke: var(--chart-deviation); stroke-width: 2; stroke-dasharray: 5 4; }
+  .chart-endpoint-plan { fill: var(--chart-plan); }
+  .chart-endpoint-deviation { fill: var(--chart-deviation); }
+  .chart-crosshair { stroke: var(--ink-muted); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+  .chart-hover-target { fill: transparent; cursor: crosshair; }
+  .chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+    transform: translate(-50%, -110%);
+  }
+  .chart-tooltip .tt-date { color: var(--ink-muted); margin-bottom: 4px; }
+  .chart-tooltip .tt-row { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .chart-tooltip .tt-swatch { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .chart-legend { display: flex; gap: 18px; margin-top: 10px; flex-wrap: wrap; }
+  .chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--ink-muted); }
+  .chart-legend-swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+  .chart-legend-swatch.deviation { background-image: repeating-linear-gradient(to right, var(--chart-deviation) 0 4px, transparent 4px 7px); }
+
+  footer {
+    font-size: 0.76rem;
+    color: var(--ink-muted);
+    line-height: 1.5;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+</style>
+
+<div class="wrap">
+  <div>
+    <div class="eyebrow">Учёт задолженности</div>
+    <h1>Мои долги</h1>
+  </div>
+
+  <div class="summary">
+    <div class="summary-top">
+      <div>
+        <div class="summary-total-label">Итого к погашению сейчас</div>
+        <div class="summary-total" id="sumTotal">0,00 ₽</div>
+      </div>
+      <div class="summary-clock" id="clock"></div>
+    </div>
+    <hr class="summary-rule" />
+    <div class="summary-chips">
+      <div>
+        <div class="chip-label">Остаток основного долга</div>
+        <div class="chip-value" id="sumPrincipal">0,00 ₽</div>
+      </div>
+      <div>
+        <div class="chip-label">Начислено процентов</div>
+        <div class="chip-value interest" id="sumInterest">0,00 ₽</div>
+      </div>
+      <div>
+        <div class="chip-label">Штрафы за просрочку</div>
+        <div class="chip-value penalty" id="sumPenalty">0,00 ₽</div>
+      </div>
+      <div>
+        <div class="chip-label">Кредитов в просрочке</div>
+        <div class="chip-value" id="sumOverdueCount">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <h2>Кредиты и займы</h2>
+    <div style="display:flex; gap:8px;">
+      <button class="btn" id="btnShowTransfer">Экспорт / импорт</button>
+      <button class="btn btn-primary" id="btnShowAdd">+ Добавить кредит</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="transferPanel">
+    <h3>Перенести данные на другое устройство</h3>
+    <div class="hint" style="margin-bottom:10px;">Долги хранятся только в этом браузере. Чтобы увидеть их на телефоне или в другой версии калькулятора — скопируйте код ниже и вставьте его в поле импорта там.</div>
+    <label><span class="field-name">Код для экспорта (скопируйте)</span>
+      <textarea id="transferExport" readonly rows="4" style="width:100%; font-family:var(--font-mono); font-size:0.78rem; background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:8px 10px; resize:vertical;"></textarea>
+    </label>
+    <div class="form-actions">
+      <button type="button" class="btn btn-small" id="btnCopyTransfer">Скопировать</button>
+    </div>
+    <hr class="card-rule" style="margin:18px 0;" />
+    <label><span class="field-name">Вставьте код, чтобы импортировать</span>
+      <textarea id="transferImport" rows="4" placeholder="Вставьте сюда код из другого устройства" style="width:100%; font-family:var(--font-mono); font-size:0.78rem; background:var(--surface-2); border:1px solid var(--line); border-radius:6px; padding:8px 10px; resize:vertical;"></textarea>
+    </label>
+    <div class="hint" id="transferImportHint"></div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary btn-small" id="btnDoImport">Импортировать (заменит текущие долги)</button>
+      <button type="button" class="btn btn-small" id="btnCloseTransfer">Закрыть</button>
+    </div>
+  </div>
+
+  <form class="panel hidden" id="addPanel">
+    <h3>Новый кредит / заём</h3>
+    <div class="field-grid">
+      <label><span class="field-name">Название</span>
+        <input type="text" id="f_name" placeholder="Например: Тинькофф, потреб. кредит" required />
+      </label>
+      <label><span class="field-name">Остаток долга, ₽</span>
+        <input type="number" id="f_principal" step="0.01" min="0" placeholder="150000" required />
+      </label>
+      <label><span class="field-name">Ставка, % годовых</span>
+        <input type="number" id="f_rate" step="0.01" min="0" placeholder="19.9" required />
+      </label>
+      <label><span class="field-name">Дата след. платежа</span>
+        <input type="date" id="f_nextDate" required />
+      </label>
+      <label><span class="field-name">Сумма платежа, ₽ (если знаете)</span>
+        <input type="number" id="f_nextAmount" step="0.01" min="0" placeholder="необязательно" />
+      </label>
+      <label><span class="field-name">Штраф за просрочку, % в день</span>
+        <input type="number" id="f_penalty" step="0.01" min="0" placeholder="0.5" />
+      </label>
+      <label><span class="field-name">Периодичность платежей, дней</span>
+        <input type="number" id="f_period" step="1" min="1" value="30" />
+      </label>
+    </div>
+    <div class="hint">Проценты начисляют со дня добавления кредита в калькулятор на текущий остаток. Штраф считается от суммы платежа (или от всего остатка, если сумма не указана) за каждый день просрочки.</div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Добавить</button>
+      <button type="button" class="btn" id="btnCancelAdd">Отмена</button>
+    </div>
+  </form>
+
+  <div class="list" id="list"></div>
+
+  <div class="empty-state hidden" id="emptyState">
+    Пока нет ни одного долга — добавьте первый кредит или заём, и калькулятор начнёт считать проценты и просрочку в реальном времени.
+  </div>
+
+  <div class="toolbar">
+    <h2>План погашения</h2>
+  </div>
+
+  <div class="panel" id="payoffPanel">
+    <div class="field-grid">
+      <label><span class="field-name">Закрыть все долги за, дней</span>
+        <input type="number" id="payoffDays" min="1" step="1" value="60" />
+      </label>
+      <label><span class="field-name">Проверить пропуск платежа в день</span>
+        <select id="missDaySelect"></select>
+      </label>
+    </div>
+
+    <div class="payoff-stats">
+      <div>
+        <div class="chip-label">Минимальный платёж в день</div>
+        <div class="chip-value" id="payoffDaily">—</div>
+      </div>
+      <div>
+        <div class="chip-label">Сверх долга уйдёт на % и пени</div>
+        <div class="chip-value interest" id="payoffOverpay">—</div>
+      </div>
+      <div>
+        <div class="chip-label">Долг к концу срока, если пропустить выбранный день</div>
+        <div class="chip-value penalty" id="payoffMissImpact">—</div>
+      </div>
+      <div>
+        <div class="chip-label">Платёж со следующего дня, чтобы наверстать</div>
+        <div class="chip-value" id="payoffRecoverDaily">—</div>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <svg id="payoffChart" viewBox="0 0 860 320" preserveAspectRatio="xMidYMid meet" role="img" aria-label="График остатка долга по дням плана погашения"></svg>
+      <div class="chart-tooltip hidden" id="chartTooltip"></div>
+    </div>
+    <div class="chart-legend" id="chartLegend"></div>
+    <div class="hint">Платёж распределяется в первую очередь на долги с ближайшим сроком или уже просроченные — так ни один долг не успевает уйти в просрочку, если хватает бюджета. Если реальный договор погашается частями иначе, план стоит считать ориентиром, а не точным графиком банка.</div>
+  </div>
+
+  <footer>
+    Расчёт: проценты — простые, по формуле «остаток × ставка / 365 × дни с момента добавления или последнего платежа».
+    Штраф — процент в день от суммы очередного платежа (или от всего остатка, если сумма платежа не задана), начиная со дня, следующего за датой платежа.
+    При внесении платежа непогашенные проценты и штраф капитализируются в новый остаток долга. Все данные хранятся только в этом браузере (localStorage) и никуда не передаются.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "debtCalculator.v1";
+  var DAY_MS = 86400000;
+
+  // Public build: no personal debts baked in. Use "Экспорт / импорт" to bring in
+  // data exported from your private copy, or add debts here with "+ Добавить кредит".
+  var SEED_DEBTS = [];
+
+  var SEED_BY_ID = {};
+  SEED_DEBTS.forEach(function (s) { SEED_BY_ID[s.id] = s; });
+
+  function loadState() {
+    var state = { debts: [] };
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      var parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && Array.isArray(parsed.debts)) state = parsed;
+    } catch (e) {}
+
+    var changed = false;
+
+    // One-time sync: apply researched typical rates (annualRate / penaltyRate) to debts
+    // that were already saved before those rates were known. Runs once, so any rate the
+    // user edits by hand afterwards (from a real contract) is never overwritten again.
+    if (!state.__ratesSyncedV1) {
+      state.debts.forEach(function (d) {
+        var seed = SEED_BY_ID[d.id];
+        if (seed && (d.annualRate !== seed.annualRate || d.penaltyRate !== seed.penaltyRate)) {
+          d.annualRate = seed.annualRate;
+          d.penaltyRate = seed.penaltyRate;
+        }
+      });
+      state.__ratesSyncedV1 = true;
+      changed = true;
+    }
+
+    SEED_DEBTS.forEach(function (seed) {
+      if (!state.debts.some(function (d) { return d.id === seed.id; })) {
+        var copy = {};
+        for (var k in seed) copy[k] = seed[k];
+        copy.accrualStart = new Date().toISOString();
+        copy.payments = [];
+        state.debts.push(copy);
+        changed = true;
+      }
+    });
+    if (changed) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+    return state;
+  }
+
+  /** @type {{debts: Array<Object>}} */
+  var state = loadState();
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {}
+  }
+
+  function uid() {
+    return "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function formatMoney(n) {
+    if (!isFinite(n)) n = 0;
+    var fixed = n.toFixed(2);
+    var parts = fixed.split(".");
+    var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return intPart + "," + parts[1] + " ₽";
+  }
+
+  function parseDateInput(str) {
+    // 'YYYY-MM-DD' -> Date at local midnight
+    var parts = str.split("-");
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0);
+  }
+
+  function toDateInputValue(d) {
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function addDays(date, days) {
+    return new Date(date.getTime() + days * DAY_MS);
+  }
+
+  // --- Core calculation ---
+  function computeDebt(debt, now) {
+    var accrualStart = new Date(debt.accrualStart);
+    var daysAccrued = Math.max(0, (now - accrualStart) / DAY_MS);
+    var dailyRate = (debt.annualRate / 100) / 365;
+    var accruedInterest = debt.principal * dailyRate * daysAccrued;
+
+    var overdue = false;
+    var overdueDays = 0;
+    var penalty = 0;
+    var nextDate = debt.nextPaymentDate ? parseDateInput(debt.nextPaymentDate) : null;
+    var dueInDays = null;
+
+    if (debt.principal <= 0.005) {
+      // closed
+    } else if (nextDate) {
+      var dueEnd = addDays(nextDate, 1); // due through end of that day
+      if (now > dueEnd) {
+        overdue = true;
+        overdueDays = (now - dueEnd) / DAY_MS;
+        var overdueAmount = debt.nextPaymentAmount > 0 ? debt.nextPaymentAmount : debt.principal;
+        penalty = overdueAmount * (debt.penaltyRate / 100) * overdueDays;
+      } else {
+        dueInDays = (dueEnd - now) / DAY_MS;
+      }
+    }
+
+    var total = debt.principal + accruedInterest + penalty;
+
+    var status = "ok";
+    if (debt.principal <= 0.005) status = "closed";
+    else if (overdue) status = "danger";
+    else if (dueInDays !== null && dueInDays <= 3) status = "warn";
+
+    return {
+      accruedInterest: accruedInterest,
+      overdue: overdue,
+      overdueDays: overdueDays,
+      penalty: penalty,
+      dueInDays: dueInDays,
+      total: total,
+      status: status
+    };
+  }
+
+  // --- Payoff plan simulation ---
+  function formatShortDate(d) {
+    return String(d.getDate()).padStart(2, "0") + "." + String(d.getMonth() + 1).padStart(2, "0");
+  }
+
+  function formatShortMoney(n) {
+    return Math.round(n).toLocaleString("ru-RU") + " ₽";
+  }
+
+  // Simulates paying dailyPaymentFn(dayIndex) every day for horizonDays, starting today.
+  // Each day, any debt already overdue as of that date accrues one more day of its penalty,
+  // then the day's budget is applied in priority order (overdue first, then soonest due date),
+  // cascading leftover budget to the next debt so a single day can close more than one.
+  function simulatePayoff(dailyPaymentFn, horizonDays) {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    var working = state.debts
+      .filter(function (d) { return d.principal > 0.005; })
+      .map(function (d) {
+        return {
+          balance: computeDebt(d, today).total,
+          overdueAmount: d.nextPaymentAmount > 0 ? d.nextPaymentAmount : d.principal,
+          penaltyRate: d.penaltyRate,
+          nextDate: d.nextPaymentDate ? parseDateInput(d.nextPaymentDate) : null
+        };
+      });
+
+    var series = [];
+    var paidTotal = 0;
+
+    for (var day = 0; day < horizonDays; day++) {
+      var date = addDays(today, day);
+
+      working.forEach(function (w) {
+        if (w.balance <= 0.005 || !w.nextDate) return;
+        if (date >= addDays(w.nextDate, 1)) {
+          w.balance += w.overdueAmount * (w.penaltyRate / 100);
+        }
+      });
+
+      var order = working
+        .filter(function (w) { return w.balance > 0.005; })
+        .sort(function (a, b) {
+          var aOverdue = a.nextDate ? date >= addDays(a.nextDate, 1) : false;
+          var bOverdue = b.nextDate ? date >= addDays(b.nextDate, 1) : false;
+          if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+          var at = a.nextDate ? a.nextDate.getTime() : Infinity;
+          var bt = b.nextDate ? b.nextDate.getTime() : Infinity;
+          return at - bt;
+        });
+
+      var budget = dailyPaymentFn(day);
+      for (var i = 0; i < order.length && budget > 0.0001; i++) {
+        var pay = Math.min(budget, order[i].balance);
+        order[i].balance -= pay;
+        budget -= pay;
+        paidTotal += pay;
+      }
+
+      var total = working.reduce(function (s, w) { return s + Math.max(0, w.balance); }, 0);
+      series.push({ day: day, date: date, total: total });
+    }
+
+    return {
+      series: series,
+      finalBalance: series.length ? series[series.length - 1].total : 0,
+      paidTotal: paidTotal
+    };
+  }
+
+  function findMinDailyPayment(horizonDays, skipDay) {
+    var hi = Math.max(
+      state.debts.reduce(function (s, d) { return s + computeDebt(d, new Date()).total; }, 0) / horizonDays,
+      1
+    );
+    function withBudget(b) {
+      return simulatePayoff(function (day) { return day === skipDay ? 0 : b; }, horizonDays);
+    }
+    for (var guard = 0; guard < 30 && withBudget(hi).finalBalance > 0.5; guard++) hi *= 2;
+    var lo = 0;
+    for (var i = 0; i < 40; i++) {
+      var mid = (lo + hi) / 2;
+      if (withBudget(mid).finalBalance <= 0.5) hi = mid; else lo = mid;
+    }
+    return hi;
+  }
+
+  function findRecoveryDailyPayment(horizonDays, baseDaily, missDay) {
+    function withRecovery(r) {
+      return simulatePayoff(function (day) {
+        if (day < missDay) return baseDaily;
+        if (day === missDay) return 0;
+        return r;
+      }, horizonDays);
+    }
+    var hi = Math.max(baseDaily * 2, 1);
+    for (var guard = 0; guard < 30 && withRecovery(hi).finalBalance > 0.5; guard++) hi *= 2;
+    var lo = 0;
+    for (var i = 0; i < 40; i++) {
+      var mid = (lo + hi) / 2;
+      if (withRecovery(mid).finalBalance <= 0.5) hi = mid; else lo = mid;
+    }
+    return hi;
+  }
+
+  function renderPayoffChart(planSeries, deviationSeries, missDay, horizonDays) {
+    var svg = document.getElementById("payoffChart");
+    var W = 860, H = 320;
+    var padL = 74, padR = 20, padT = 16, padB = 34;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    var maxVal = 1;
+    planSeries.forEach(function (p) { if (p.total > maxVal) maxVal = p.total; });
+    if (deviationSeries) deviationSeries.forEach(function (p) { if (p.total > maxVal) maxVal = p.total; });
+    maxVal *= 1.08;
+
+    function xPos(day) { return padL + (horizonDays <= 1 ? 0 : (day / (horizonDays - 1)) * plotW); }
+    function yPos(val) { return padT + plotH - (val / maxVal) * plotH; }
+
+    var gridHtml = "";
+    var steps = 4;
+    for (var s = 0; s <= steps; s++) {
+      var val = (maxVal / steps) * s;
+      var gy = yPos(val);
+      gridHtml += '<line class="chart-grid-line" x1="' + padL + '" y1="' + gy + '" x2="' + (W - padR) + '" y2="' + gy + '" />';
+      gridHtml += '<text class="chart-axis-label" x="' + (padL - 10) + '" y="' + (gy + 4) + '" text-anchor="end">' + formatShortMoney(val) + '</text>';
+    }
+
+    var xAxisHtml = "";
+    var labelEvery = Math.max(1, Math.ceil(horizonDays / 7));
+    for (var d = 0; d < horizonDays; d += labelEvery) {
+      xAxisHtml += '<text class="chart-axis-label" x="' + xPos(d) + '" y="' + (H - padB + 18) + '" text-anchor="middle">' + formatShortDate(planSeries[d].date) + '</text>';
+    }
+    var lastIdx = horizonDays - 1;
+    if (lastIdx % labelEvery !== 0) {
+      xAxisHtml += '<text class="chart-axis-label" x="' + xPos(lastIdx) + '" y="' + (H - padB + 18) + '" text-anchor="middle">' + formatShortDate(planSeries[lastIdx].date) + '</text>';
+    }
+
+    function toPoints(series) {
+      return series.map(function (p) { return xPos(p.day) + "," + yPos(p.total); }).join(" ");
+    }
+
+    var planLast = planSeries[planSeries.length - 1];
+    var devHtml = "";
+    if (deviationSeries) {
+      var devSlice = deviationSeries.slice(missDay);
+      var devLast = deviationSeries[deviationSeries.length - 1];
+      devHtml =
+        '<polyline class="chart-line-deviation" points="' + toPoints(devSlice) + '" />' +
+        '<circle class="chart-endpoint-deviation" cx="' + xPos(devLast.day) + '" cy="' + yPos(devLast.total) + '" r="4" />';
+    }
+
+    svg.innerHTML =
+      gridHtml + xAxisHtml +
+      '<polyline class="chart-line-plan" points="' + toPoints(planSeries) + '" />' +
+      '<circle class="chart-endpoint-plan" cx="' + xPos(planLast.day) + '" cy="' + yPos(planLast.total) + '" r="4" />' +
+      devHtml +
+      '<rect class="chart-hover-target" x="' + padL + '" y="' + padT + '" width="' + plotW + '" height="' + plotH + '" />' +
+      '<line class="chart-crosshair" id="chartCrosshair" x1="0" y1="' + padT + '" x2="0" y2="' + (padT + plotH) + '" style="display:none" />';
+
+    var legend = document.getElementById("chartLegend");
+    legend.innerHTML =
+      '<div class="chart-legend-item"><span class="chart-legend-swatch" style="background:var(--chart-plan)"></span>План (платите каждый день)</div>' +
+      (deviationSeries ? '<div class="chart-legend-item"><span class="chart-legend-swatch deviation"></span>Пропущен день ' + (missDay + 1) + '</div>' : '');
+
+    var hoverTarget = svg.querySelector(".chart-hover-target");
+    var crosshair = svg.querySelector("#chartCrosshair");
+    var tooltip = document.getElementById("chartTooltip");
+
+    hoverTarget.addEventListener("mousemove", function (e) {
+      var rect = svg.getBoundingClientRect();
+      var mx = (e.clientX - rect.left) * (W / rect.width);
+      var dayIdx = Math.round(((mx - padL) / plotW) * (horizonDays - 1));
+      dayIdx = Math.max(0, Math.min(horizonDays - 1, dayIdx));
+      var px = xPos(dayIdx);
+      crosshair.setAttribute("x1", px);
+      crosshair.setAttribute("x2", px);
+      crosshair.style.display = "block";
+
+      var planP = planSeries[dayIdx];
+      var rows = '<div class="tt-row"><span class="tt-swatch" style="background:var(--chart-plan)"></span>' + formatMoney(planP.total) + '</div>';
+      if (deviationSeries && dayIdx >= missDay) {
+        rows += '<div class="tt-row"><span class="tt-swatch" style="background:var(--chart-deviation)"></span>' + formatMoney(deviationSeries[dayIdx].total) + '</div>';
+      }
+      tooltip.innerHTML = '<div class="tt-date">' + formatShortDate(planP.date) + '</div>' + rows;
+      tooltip.style.left = (px * (rect.width / W)) + "px";
+      tooltip.style.top = (yPos(planP.total) * (rect.height / H)) + "px";
+      tooltip.classList.remove("hidden");
+    });
+    hoverTarget.addEventListener("mouseleave", function () {
+      crosshair.style.display = "none";
+      tooltip.classList.add("hidden");
+    });
+  }
+
+  function renderPayoffPlan() {
+    var horizonDays = Math.max(1, parseInt(document.getElementById("payoffDays").value, 10) || 60);
+    var missSelect = document.getElementById("missDaySelect");
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (missSelect.dataset.count !== String(horizonDays)) {
+      var prevValue = missSelect.value;
+      missSelect.innerHTML = "";
+      for (var d = 0; d < horizonDays; d++) {
+        var opt = document.createElement("option");
+        opt.value = String(d);
+        opt.textContent = "День " + (d + 1) + " (" + formatShortDate(addDays(today, d)) + ")";
+        missSelect.appendChild(opt);
+      }
+      missSelect.dataset.count = String(horizonDays);
+      missSelect.value = prevValue && Number(prevValue) < horizonDays ? prevValue : "0";
+    }
+    var missDay = parseInt(missSelect.value, 10) || 0;
+
+    var activeDebts = state.debts.filter(function (d) { return d.principal > 0.005; });
+    var payoffDailyEl = document.getElementById("payoffDaily");
+    var payoffOverpayEl = document.getElementById("payoffOverpay");
+    var payoffMissImpactEl = document.getElementById("payoffMissImpact");
+    var payoffRecoverDailyEl = document.getElementById("payoffRecoverDaily");
+
+    if (activeDebts.length === 0) {
+      payoffDailyEl.textContent = "—";
+      payoffOverpayEl.textContent = "—";
+      payoffMissImpactEl.textContent = "—";
+      payoffRecoverDailyEl.textContent = "—";
+      document.getElementById("payoffChart").innerHTML = "";
+      document.getElementById("chartLegend").innerHTML = "";
+      return;
+    }
+
+    var totalNow = activeDebts.reduce(function (s, d) { return s + computeDebt(d, today).total; }, 0);
+    var daily = findMinDailyPayment(horizonDays, null);
+    var planResult = simulatePayoff(function () { return daily; }, horizonDays);
+    var missResult = simulatePayoff(function (day) { return day === missDay ? 0 : daily; }, horizonDays);
+    var recoverDaily = missDay < horizonDays - 1 ? findRecoveryDailyPayment(horizonDays, daily, missDay) : null;
+
+    payoffDailyEl.textContent = formatMoney(daily) + " / день";
+    payoffOverpayEl.textContent = formatMoney(Math.max(0, planResult.paidTotal - totalNow));
+    payoffMissImpactEl.textContent = missResult.finalBalance > 0.5 ? formatMoney(missResult.finalBalance) : "0,00 ₽";
+    payoffRecoverDailyEl.textContent = recoverDaily !== null ? formatMoney(recoverDaily) + " / день" : "—";
+
+    renderPayoffChart(planResult.series, missResult.series, missDay, horizonDays);
+  }
+
+  // --- Rendering ---
+  var listEl = document.getElementById("list");
+  var emptyEl = document.getElementById("emptyState");
+  var statusLabels = { ok: "Текущий", warn: "Скоро платёж", danger: "Просрочено", closed: "Закрыт" };
+
+  function renderAll() {
+    listEl.innerHTML = "";
+    if (state.debts.length === 0) {
+      emptyEl.classList.remove("hidden");
+      tick();
+      renderPayoffPlan();
+      return;
+    }
+    emptyEl.classList.add("hidden");
+
+    var sorted = state.debts.slice().sort(function (a, b) {
+      var order = { danger: 0, warn: 1, ok: 2, closed: 3 };
+      var ca = computeDebt(a, new Date()), cb = computeDebt(b, new Date());
+      return order[ca.status] - order[cb.status];
+    });
+
+    sorted.forEach(function (debt) {
+      listEl.appendChild(buildCard(debt));
+    });
+    tick();
+    renderPayoffPlan();
+  }
+
+  function buildCard(debt) {
+    var card = document.createElement("div");
+    card.className = "card";
+    card.dataset.id = debt.id;
+
+    card.innerHTML =
+      '<div class="card-header">' +
+        '<div>' +
+          '<div class="card-title-row">' +
+            '<span class="card-title">' + escapeHtml(debt.name) + '</span>' +
+            '<span class="pill" data-role="pill">—</span>' +
+          '</div>' +
+          '<div class="stat-sub" data-role="subline">—</div>' +
+        '</div>' +
+        '<div class="card-total">' +
+          '<div class="card-total-label">К погашению сейчас</div>' +
+          '<div class="card-total-value" data-role="total">—</div>' +
+        '</div>' +
+      '</div>' +
+      '<hr class="card-rule" />' +
+      '<div class="card-body">' +
+        '<div><div class="stat-label">Остаток долга</div><div class="stat-value" data-role="principal">—</div></div>' +
+        '<div><div class="stat-label">Начислено процентов</div><div class="stat-value interest-num" data-role="interest">—</div></div>' +
+        '<div><div class="stat-label">Штраф за просрочку</div><div class="stat-value penalty" data-role="penalty">—</div></div>' +
+        '<div><div class="stat-label">Ставка / штраф</div><div class="stat-value" style="font-size:0.9rem">' + fmtNum(debt.annualRate) + '% год. / ' + fmtNum(debt.penaltyRate) + '%/день</div></div>' +
+      '</div>' +
+      '<div class="card-actions">' +
+        '<button class="btn btn-small btn-primary" data-action="toggle-pay">Внести платёж</button>' +
+        '<button class="btn btn-small" data-action="toggle-history">История платежей (' + (debt.payments.length) + ')</button>' +
+        '<button class="btn-ghost" data-action="toggle-edit">Изменить</button>' +
+        '<button class="btn-danger-ghost" data-action="ask-delete">Удалить</button>' +
+      '</div>' +
+      '<div class="card-subpanel hidden" data-panel="pay">' +
+        '<h4>Внести платёж</h4>' +
+        '<div class="field-grid">' +
+          '<label><span class="field-name">Сумма, ₽</span><input type="number" step="0.01" min="0.01" data-role="payAmount" /></label>' +
+          '<label><span class="field-name">Дата</span><input type="date" data-role="payDate" value="' + toDateInputValue(new Date()) + '" /></label>' +
+          '<label><span class="field-name">Комментарий</span><input type="text" data-role="payNote" placeholder="необязательно" /></label>' +
+        '</div>' +
+        '<div class="form-actions">' +
+          '<button class="btn btn-primary btn-small" data-action="submit-pay">Сохранить платёж</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card-subpanel hidden" data-panel="history">' +
+        '<h4>История платежей</h4>' +
+        '<div class="history-list" data-role="historyList"></div>' +
+      '</div>' +
+      '<div class="card-subpanel hidden" data-panel="edit">' +
+        '<h4>Изменить параметры</h4>' +
+        '<div class="field-grid">' +
+          '<label><span class="field-name">Название</span><input type="text" data-role="e_name" value="' + escapeAttr(debt.name) + '" /></label>' +
+          '<label><span class="field-name">Остаток долга, ₽</span><input type="number" step="0.01" min="0" data-role="e_principal" value="' + debt.principal + '" /></label>' +
+          '<label><span class="field-name">Ставка, % годовых</span><input type="number" step="0.01" min="0" data-role="e_rate" value="' + debt.annualRate + '" /></label>' +
+          '<label><span class="field-name">Дата след. платежа</span><input type="date" data-role="e_nextDate" value="' + (debt.nextPaymentDate || "") + '" /></label>' +
+          '<label><span class="field-name">Сумма платежа, ₽</span><input type="number" step="0.01" min="0" data-role="e_nextAmount" value="' + (debt.nextPaymentAmount || 0) + '" /></label>' +
+          '<label><span class="field-name">Штраф, % в день</span><input type="number" step="0.01" min="0" data-role="e_penalty" value="' + debt.penaltyRate + '" /></label>' +
+          '<label><span class="field-name">Периодичность, дней</span><input type="number" step="1" min="1" data-role="e_period" value="' + debt.periodDays + '" /></label>' +
+        '</div>' +
+        '<div class="hint">Изменение остатка долга и даты сбрасывает точку начала начисления процентов на сегодня.</div>' +
+        '<div class="form-actions">' +
+          '<button class="btn btn-primary btn-small" data-action="submit-edit">Сохранить</button>' +
+        '</div>' +
+      '</div>';
+
+    var historyList = card.querySelector('[data-role="historyList"]');
+    if (debt.payments.length === 0) {
+      historyList.innerHTML = '<div class="stat-sub">Платежей пока не было.</div>';
+    } else {
+      debt.payments.slice().reverse().forEach(function (p) {
+        var row = document.createElement("div");
+        row.className = "history-row";
+        row.innerHTML =
+          '<span class="history-date">' + p.date + '</span>' +
+          '<span class="history-amount">' + formatMoney(p.amount) + '</span>' +
+          '<span class="history-note">' + escapeHtml(p.note || "") + '</span>';
+        historyList.appendChild(row);
+      });
+    }
+
+    return card;
+  }
+
+  function fmtNum(n) {
+    return (Math.round(n * 100) / 100).toString().replace(".", ",");
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  // --- Ticking (live update of numbers without full rebuild) ---
+  var lastValues = {}; // id -> last rendered total string, for flash effect
+
+  function tick() {
+    var now = new Date();
+    document.getElementById("clock").textContent = now.toLocaleString("ru-RU", {
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+
+    var sumPrincipal = 0, sumInterest = 0, sumPenalty = 0, sumTotal = 0, overdueCount = 0;
+
+    document.querySelectorAll(".card").forEach(function (card) {
+      var id = card.dataset.id;
+      var debt = state.debts.find(function (d) { return d.id === id; });
+      if (!debt) return;
+      var c = computeDebt(debt, now);
+
+      sumPrincipal += debt.principal;
+      sumInterest += c.accruedInterest;
+      sumPenalty += c.penalty;
+      sumTotal += c.total;
+      if (c.overdue) overdueCount++;
+
+      card.className = "card status-" + c.status;
+
+      var pill = card.querySelector('[data-role="pill"]');
+      pill.className = "pill status-" + c.status;
+      pill.textContent = statusLabels[c.status];
+
+      var subline = card.querySelector('[data-role="subline"]');
+      if (c.status === "closed") {
+        subline.textContent = "Долг полностью погашен";
+      } else if (c.overdue) {
+        subline.textContent = "Просрочка: " + Math.floor(c.overdueDays) + " дн. (платёж был " + debt.nextPaymentDate + ")";
+      } else if (c.dueInDays !== null) {
+        subline.textContent = "Следующий платёж через " + Math.max(0, Math.ceil(c.dueInDays)) + " дн. (" + debt.nextPaymentDate + ")";
+      } else {
+        subline.textContent = "";
+      }
+
+      setNum(card, "total", formatMoney(c.total), "card-total-value status-" + c.status);
+      setNum(card, "principal", formatMoney(debt.principal));
+      setNum(card, "interest", formatMoney(c.accruedInterest));
+      setNum(card, "penalty", formatMoney(c.penalty));
+    });
+
+    document.getElementById("sumTotal").textContent = formatMoney(sumTotal);
+    document.getElementById("sumPrincipal").textContent = formatMoney(sumPrincipal);
+    document.getElementById("sumInterest").textContent = formatMoney(sumInterest);
+    document.getElementById("sumPenalty").textContent = formatMoney(sumPenalty);
+    document.getElementById("sumOverdueCount").textContent = String(overdueCount);
+  }
+
+  function setNum(card, role, text, extraClass) {
+    var el = card.querySelector('[data-role="' + role + '"]');
+    if (!el) return;
+    if (el.textContent !== text) {
+      el.textContent = text;
+      if (extraClass) el.className = extraClass;
+      el.classList.add("flash");
+      window.setTimeout(function () { el.classList.remove("flash"); }, 600);
+    }
+  }
+
+  // --- Event handling ---
+  document.getElementById("btnShowAdd").addEventListener("click", function () {
+    document.getElementById("addPanel").classList.remove("hidden");
+    document.getElementById("transferPanel").classList.add("hidden");
+    document.getElementById("f_name").focus();
+  });
+  document.getElementById("btnCancelAdd").addEventListener("click", function () {
+    document.getElementById("addPanel").classList.add("hidden");
+  });
+
+  document.getElementById("btnShowTransfer").addEventListener("click", function () {
+    document.getElementById("addPanel").classList.add("hidden");
+    var panel = document.getElementById("transferPanel");
+    panel.classList.toggle("hidden");
+    if (!panel.classList.contains("hidden")) {
+      document.getElementById("transferExport").value = JSON.stringify({ debts: state.debts });
+      document.getElementById("transferImportHint").textContent = "";
+    }
+  });
+  document.getElementById("btnCloseTransfer").addEventListener("click", function () {
+    document.getElementById("transferPanel").classList.add("hidden");
+  });
+  document.getElementById("btnCopyTransfer").addEventListener("click", function () {
+    var ta = document.getElementById("transferExport");
+    ta.select();
+    var copyBtn = document.getElementById("btnCopyTransfer");
+    function done(ok) { copyBtn.textContent = ok ? "Скопировано" : "Не удалось скопировать"; setTimeout(function () { copyBtn.textContent = "Скопировать"; }, 1500); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(function () { done(true); }, function () { done(document.execCommand("copy")); });
+    } else {
+      done(document.execCommand("copy"));
+    }
+  });
+  document.getElementById("btnDoImport").addEventListener("click", function () {
+    var hint = document.getElementById("transferImportHint");
+    var raw = document.getElementById("transferImport").value.trim();
+    if (!raw) { hint.textContent = "Вставьте код перед импортом."; hint.style.color = "var(--danger)"; return; }
+    var parsed;
+    try { parsed = JSON.parse(raw); } catch (e) { hint.textContent = "Это не похоже на код калькулятора — проверьте, что скопировали целиком."; hint.style.color = "var(--danger)"; return; }
+    if (!parsed || !Array.isArray(parsed.debts)) { hint.textContent = "В коде нет списка долгов."; hint.style.color = "var(--danger)"; return; }
+    state.debts = parsed.debts;
+    state.__ratesSyncedV1 = true;
+    saveState();
+    renderAll();
+    hint.textContent = "Импортировано: " + parsed.debts.length + " долг(ов).";
+    hint.style.color = "var(--ok)";
+    document.getElementById("transferImport").value = "";
+  });
+
+  document.getElementById("addPanel").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = document.getElementById("f_name").value.trim();
+    var principal = parseFloat(document.getElementById("f_principal").value);
+    var rate = parseFloat(document.getElementById("f_rate").value);
+    var nextDate = document.getElementById("f_nextDate").value;
+    var nextAmount = parseFloat(document.getElementById("f_nextAmount").value) || 0;
+    var penaltyRate = parseFloat(document.getElementById("f_penalty").value) || 0;
+    var period = parseInt(document.getElementById("f_period").value, 10) || 30;
+
+    if (!name || !isFinite(principal) || principal < 0 || !isFinite(rate) || !nextDate) return;
+
+    state.debts.push({
+      id: uid(),
+      name: name,
+      principal: principal,
+      annualRate: rate,
+      nextPaymentDate: nextDate,
+      nextPaymentAmount: nextAmount,
+      penaltyRate: penaltyRate,
+      periodDays: period,
+      accrualStart: new Date().toISOString(),
+      payments: []
+    });
+    saveState();
+    e.target.reset();
+    document.getElementById("f_period").value = 30;
+    document.getElementById("addPanel").classList.add("hidden");
+    renderAll();
+  });
+
+  listEl.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    var card = e.target.closest(".card");
+    var id = card.dataset.id;
+    var debt = state.debts.find(function (d) { return d.id === id; });
+    if (!debt) return;
+    var action = btn.dataset.action;
+
+    if (action === "toggle-pay") {
+      togglePanel(card, "pay");
+    } else if (action === "toggle-history") {
+      togglePanel(card, "history");
+    } else if (action === "toggle-edit") {
+      togglePanel(card, "edit");
+    } else if (action === "ask-delete") {
+      confirmDelete(card, debt);
+    } else if (action === "submit-pay") {
+      submitPayment(card, debt);
+    } else if (action === "submit-edit") {
+      submitEdit(card, debt);
+    } else if (action === "confirm-delete") {
+      state.debts = state.debts.filter(function (d) { return d.id !== debt.id; });
+      saveState();
+      renderAll();
+    } else if (action === "cancel-delete") {
+      var row = card.querySelector(".confirm-row");
+      if (row) row.remove();
+    }
+  });
+
+  function togglePanel(card, name) {
+    ["pay", "history", "edit"].forEach(function (p) {
+      var el = card.querySelector('[data-panel="' + p + '"]');
+      if (!el) return;
+      if (p === name) el.classList.toggle("hidden");
+      else el.classList.add("hidden");
+    });
+  }
+
+  function confirmDelete(card, debt) {
+    if (card.querySelector(".confirm-row")) return;
+    var row = document.createElement("div");
+    row.className = "confirm-row";
+    row.innerHTML =
+      '<span>Удалить «' + escapeHtml(debt.name) + '» вместе с историей платежей?</span>' +
+      '<button class="btn btn-small" data-action="confirm-delete">Да, удалить</button>' +
+      '<button class="btn-ghost" data-action="cancel-delete">Отмена</button>';
+    card.querySelector(".card-actions").insertAdjacentElement("afterend", row);
+  }
+
+  function submitPayment(card, debt) {
+    var amountEl = card.querySelector('[data-role="payAmount"]');
+    var dateEl = card.querySelector('[data-role="payDate"]');
+    var noteEl = card.querySelector('[data-role="payNote"]');
+    var amount = parseFloat(amountEl.value);
+    var dateStr = dateEl.value;
+    if (!isFinite(amount) || amount <= 0 || !dateStr) return;
+
+    var payDate = parseDateInput(dateStr);
+    var c = computeDebt(debt, payDate);
+    var remaining = Math.max(0, c.total - amount);
+
+    debt.principal = remaining;
+    debt.accrualStart = payDate.toISOString();
+    debt.payments.push({ date: dateStr, amount: amount, note: noteEl.value.trim() });
+
+    if (remaining <= 0.005) {
+      debt.principal = 0;
+    } else {
+      var base = payDate > parseDateInput(debt.nextPaymentDate) ? payDate : parseDateInput(debt.nextPaymentDate);
+      debt.nextPaymentDate = toDateInputValue(addDays(base, debt.periodDays));
+    }
+
+    saveState();
+    renderAll();
+  }
+
+  function submitEdit(card, debt) {
+    var name = card.querySelector('[data-role="e_name"]').value.trim();
+    var principal = parseFloat(card.querySelector('[data-role="e_principal"]').value);
+    var rate = parseFloat(card.querySelector('[data-role="e_rate"]').value);
+    var nextDate = card.querySelector('[data-role="e_nextDate"]').value;
+    var nextAmount = parseFloat(card.querySelector('[data-role="e_nextAmount"]').value) || 0;
+    var penaltyRate = parseFloat(card.querySelector('[data-role="e_penalty"]').value) || 0;
+    var period = parseInt(card.querySelector('[data-role="e_period"]').value, 10) || 30;
+
+    if (!name || !isFinite(principal) || principal < 0 || !isFinite(rate) || !nextDate) return;
+
+    debt.name = name;
+    debt.principal = principal;
+    debt.annualRate = rate;
+    debt.nextPaymentDate = nextDate;
+    debt.nextPaymentAmount = nextAmount;
+    debt.penaltyRate = penaltyRate;
+    debt.periodDays = period;
+    debt.accrualStart = new Date().toISOString();
+
+    saveState();
+    renderAll();
+  }
+
+  // Default next-payment date suggestion for the add form (today + 30 days)
+  document.getElementById("f_nextDate").value = toDateInputValue(addDays(new Date(), 30));
+
+  document.getElementById("payoffDays").addEventListener("input", function () {
+    document.getElementById("missDaySelect").dataset.count = "";
+    renderPayoffPlan();
+  });
+  document.getElementById("missDaySelect").addEventListener("change", renderPayoffPlan);
+
+  renderAll();
+  setInterval(tick, 1000);
+})();
+</script>
